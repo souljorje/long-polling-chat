@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Simple chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    .container {
+      max-width: 1170px;
+      margin: auto;
+      overflow: 0 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <form action="#">
+      <input type="text" placeholder="your message">
+      <button type="submit">Send</button>
+    </form>
+    <ul>
+    </ul>
+  </div>
+  <script>
+    /**
+     * Simple chat made with long-polling requests.
+     *
+     * @class Chat
+     */
+    class Chat {
+      /**
+       * Creates an instance of Chat.
+       * @param {Object} options
+       * @memberof Chat
+       */
+      constructor(options) {
+        this.options = options;
+        this.form = options.form;
+        this.input = options.input;
+        this.sendButton = options.sendButton;
+        this.output = options.output;
+      }
+
+      /**
+       * Send message to server, then server recieves it and
+       * send to each client which is subscribed on it.
+       *
+       * @returns {Promise} 
+       * @memberof Chat
+       */
+      async sendMessage() {
+        const message = this.input.value;
+        const response = await fetch('publish', {
+          method: 'POST',
+          body: message,
+        });
+        this.input.value = '';
+        return response;
+      }
+      
+      /**
+       * Send get request to server and wait for it's answer – subscribe.
+       * After getting a response subscribes again.
+       *
+       * @memberof Chat
+       */
+      async subscribe() {
+        const response = await fetch('/subscribe');
+        if (response.status === 200) {
+          const message = await response.text();
+          console.log(message)
+          this.createMessage(message);
+          this.subscribe();
+        } else {
+          console.error(`Error! Server responded with status ${response.status}`);
+          setTimeout(() => {
+            this.subscribe();
+          }, 500);
+        }
+      }
+
+      /**
+       * Appends message to chat.
+       *
+       * @param {String} value
+       * @memberof Chat
+       */
+      createMessage(value) {
+        const messageElement = document.createElement('li');
+        messageElement.innerText = value;
+        this.output.appendChild(messageElement);
+      }
+
+      /**
+       * 
+       *
+       * @memberof Chat
+       */
+      init() {
+        this.form.addEventListener('submit', (event) => {
+          event.preventDefault();
+          if (this.input.value.length) {
+            this.sendMessage();
+          }
+        });
+        this.subscribe();
+      }
+    }
+
+    const simpleChat = new Chat({
+      form: document.querySelector('form'),
+      input: document.querySelector('input'),
+      sendButton: document.querySelector('button'),
+      output: document.querySelector('ul'),
+    });
+
+    simpleChat.init();
+  </script>
+</body>
+</html>
